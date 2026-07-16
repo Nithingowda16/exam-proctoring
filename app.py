@@ -50,6 +50,33 @@ app = Flask(__name__)
 app.secret_key = "secure_html_exam_key_apple_glassmorphism_2026"
 app.permanent_session_lifetime = timedelta(hours=3)
 
+# ----------------- Timezone and Scheduled Exam Window -----------------
+from datetime import timezone
+
+# Scheduled window: Friday, July 17, 2026, 7:00 PM to 9:00 PM IST (UTC+5:30)
+EXAM_START_IST = datetime(2026, 7, 17, 19, 0, 0)
+EXAM_END_IST = datetime(2026, 7, 17, 21, 0, 0)
+
+def get_ist_now():
+    """Returns the current datetime in Indian Standard Time (IST) timezone."""
+    return datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+
+def check_exam_window():
+    """Determines the current status of the scheduled examination slot.
+    Returns:
+        status (str): 'upcoming', 'active', or 'ended'
+        seconds (int): time remaining until next transition
+    """
+    now = get_ist_now().replace(tzinfo=None)
+    if now < EXAM_START_IST:
+        diff = int((EXAM_START_IST - now).total_seconds())
+        return 'upcoming', diff
+    elif now > EXAM_END_IST:
+        return 'ended', 0
+    else:
+        diff = int((EXAM_END_IST - now).total_seconds())
+        return 'active', diff
+
 # Auto-migrate: Add latest_frame column to exam_sessions if missing
 conn = get_db_connection()
 cursor = conn.cursor()
@@ -147,10 +174,16 @@ def logout():
 
 @app.route("/instructions")
 def instructions():
-    """Shows rules and instructions before starting the exam."""
     if not g.student:
         return redirect(url_for("index"))
         
+    # Check if the exam window is active/upcoming/ended
+    window_status, _ = check_exam_window()
+    if window_status == 'upcoming':
+        return render_template("exam_upcoming.html")
+    elif window_status == 'ended':
+        return render_template("exam_ended.html")
+
     settings = get_settings()
     
     # Check if they have an ongoing active session
@@ -186,6 +219,11 @@ def start_exam():
     if not g.student:
         return redirect(url_for("index"))
         
+    # Enforce scheduled exam window check
+    window_status, _ = check_exam_window()
+    if window_status != 'active':
+        return redirect(url_for("instructions"))
+        
     settings = get_settings()
     
     conn = get_db_connection()
@@ -208,10 +246,12 @@ def start_exam():
     session_row = cursor.fetchone()
     
     if not session_row:
-        # Create a new session
+        # Create a new session using Indian Standard Time (IST)
         duration_minutes = settings["duration_minutes"]
-        started_at = datetime.now()
-        expires_at = started_at + timedelta(minutes=duration_minutes)
+        started_at = get_ist_now().replace(tzinfo=None)
+        duration_expiry = started_at + timedelta(minutes=duration_minutes)
+        # Cap session expiry to the scheduled end of the exam slot (20:40)
+        expires_at = min(duration_expiry, EXAM_END_IST)
         random_seed = random.randint(1, 1000000)
         
         cursor.execute(
@@ -278,7 +318,7 @@ def exam_window():
         
     # Check if session is expired
     expires_at = datetime.strptime(session_row["expires_at"], "%Y-%m-%d %H:%M:%S")
-    now = datetime.now()
+    now = get_ist_now().replace(tzinfo=None)
     
     if now >= expires_at:
         conn.close()
@@ -373,7 +413,7 @@ def save_answer():
         return jsonify({"success": False, "error": "Session closed or invalid"}), 403
         
     expires_at = datetime.strptime(session_row["expires_at"], "%Y-%m-%d %H:%M:%S")
-    if datetime.now() >= expires_at:
+    if get_ist_now().replace(tzinfo=None) >= expires_at:
         conn.close()
         return jsonify({"success": False, "error": "Time expired"}), 403
         
@@ -574,7 +614,7 @@ def submit_exam_processing(session_id, student_id):
         conn.close()
         return
         
-    now = datetime.now()
+    now = get_ist_now().replace(tzinfo=None)
     submitted_at_str = now.strftime("%Y-%m-%d %H:%M:%S")
     
     # Set submitted state
@@ -1154,7 +1194,7 @@ def admin_export_results():
         
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=html_exam_results_{}.csv".format(
-        datetime.now().strftime("%Y%m%d_%H%M%S")
+        get_ist_now().strftime("%Y%m%d_%H%M%S")
     )
     output.headers["Content-type"] = "text/csv"
     return output

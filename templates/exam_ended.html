@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}Examination Ended - NEMS{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 60px auto; padding: 40px; text-align: center;">
+    <div style="font-size: 64px; margin-bottom: 20px;">🛡️</div>
+    <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.02em; color: var(--danger-color);">Examination Ended</h2>
+    
+    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 32px;">
+        This examination session is now closed.<br>
+        The submission window ended on <strong>Friday, July 17, 2026, at 09:00 PM IST</strong>.<br><br>
+        If you missed this exam slot or faced technical issues, please contact your administrator.
+    </p>
+    
+    <a href="{{ url_for('logout') }}" class="btn-secondary" style="padding: 10px 24px; border-radius: 980px; text-decoration: none; display: inline-block;">Return to Portal</a>
+</div>
+{% endblock %}
