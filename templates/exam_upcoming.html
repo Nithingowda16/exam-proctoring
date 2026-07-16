@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Examination Scheduled - NEMS{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 60px auto; padding: 40px; text-align: center;">
+    <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
+    <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.02em; color: var(--text-primary);">Examination Scheduled</h2>
+    
+    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 32px;">
+        The HTML Programming Examination is currently locked.<br>
+        It is scheduled to start on <strong>Friday, July 17, 2026, at 07:00 PM IST</strong>.
+    </p>
+
+    <!-- Beautiful Apple Countdown Timer Widget -->
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); padding: 20px; border-radius: 14px; margin-bottom: 32px;">
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px;">
+            Unlocks In
+        </div>
+        <div id="countdown-timer" style="font-size: 32px; font-weight: 700; font-family: monospace; color: var(--primary-color);">
+            --:--:--
+        </div>
+    </div>
+    
+    <a href="{{ url_for('logout') }}" class="btn-secondary" style="padding: 10px 24px; border-radius: 980px; text-decoration: none; display: inline-block;">Log Out</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Target start time: Friday, July 17, 2026, 19:00:00 IST (UTC+5:30)
+        const targetTime = new Date("2026-07-17T19:00:00+05:30").getTime();
+        const display = document.getElementById("countdown-timer");
+        
+        function updateTimer() {
+            const now = new Date().getTime();
+            const diff = targetTime - now;
+            
+            if (diff <= 0) {
+                display.textContent = "00:00:00";
+                window.location.reload();
+                return;
+            }
+            
+            const hours = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            
+            display.textContent = 
+                `${hours < 10 ? '0' : ''}${hours}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+        
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    });
+</script>
+{% endblock %}
