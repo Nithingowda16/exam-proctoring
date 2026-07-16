@@ -76,7 +76,3 @@ Open **`http://localhost:5000`** in your web browser.
 #### Candidate 1 (Standard)
 * **Student ID / Email**: `saishivani@nxtwave.in`
 * **Password**: `saishivani@stu1869`
-
-#### Candidate 2 (Demo Profile)
-* **Student ID / Email**: `demo@nxtwave.in`
-* **Password**: `demo123`
