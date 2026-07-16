@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Access Portal - HTML Online Exam{% endblock %}
+
+{% block content %}
+<div class="auth-container glass-card">
+    <!-- Tab Controls -->
+    <div style="display: flex; border-bottom: 1px solid var(--glass-border); margin-bottom: 24px; text-align: center;">
+        <div id="tab-login" class="auth-tab" style="flex: 1; padding: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid var(--color-primary); color: #fff;">
+            Login
+        </div>
+        <div id="tab-register" class="auth-tab" style="flex: 1; padding: 12px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary);">
+            Register
+        </div>
+    </div>
+
+    <!-- Alert Notices -->
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+        <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    <!-- Login Form -->
+    <form id="form-login" action="{{ url_for('index') }}" method="POST">
+        <input type="hidden" name="action" value="login">
+        
+        <div class="form-group">
+            <label class="form-label" for="login_student_id">Student ID / Roll Number</label>
+            <input type="text" id="login_student_id" name="student_id" class="form-control" placeholder="e.g. STU12345" required autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="login_password">Password</label>
+            <input type="password" id="login_password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Access Portal</button>
+    </form>
+
+    <!-- Registration Form -->
+    <form id="form-register" action="{{ url_for('index') }}" method="POST" class="d-none">
+        <input type="hidden" name="action" value="register">
+        
+        <div class="form-group">
+            <label class="form-label" for="reg_student_id">Desired Student ID / Roll Number</label>
+            <input type="text" id="reg_student_id" name="student_id" class="form-control" placeholder="e.g. STU12345" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="reg_name">Full Name</label>
+            <input type="text" id="reg_name" name="name" class="form-control" placeholder="e.g. John Doe" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="reg_password">Password</label>
+            <input type="password" id="reg_password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+        
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Create Account</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tabLogin = document.getElementById("tab-login");
+    const tabRegister = document.getElementById("tab-register");
+    const formLogin = document.getElementById("form-login");
+    const formRegister = document.getElementById("form-register");
+
+    tabLogin.addEventListener("click", () => {
+        tabLogin.style.borderColor = "var(--color-primary)";
+        tabLogin.style.color = "#fff";
+        tabRegister.style.borderColor = "transparent";
+        tabRegister.style.color = "var(--text-secondary)";
+        
+        formLogin.classList.remove("d-none");
+        formRegister.classList.add("d-none");
+    });
+
+    tabRegister.addEventListener("click", () => {
+        tabRegister.style.borderColor = "var(--color-primary)";
+        tabRegister.style.color = "#fff";
+        tabLogin.style.borderColor = "transparent";
+        tabLogin.style.color = "var(--text-secondary)";
+        
+        formRegister.classList.remove("d-none");
+        formLogin.classList.add("d-none");
+    });
+
+    // Handle initial state if error happened on registration
+    {% if error and request.form.get('action') == 'register' %}
+        tabRegister.click();
+    {% endif %}
+</script>
+{% endblock %}

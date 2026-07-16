@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Students - Admin Console{% endblock %}
+
+{% block content %}
+<!-- Sub Navigation -->
+<div class="glass-card admin-navbar">
+    <h3 style="margin: 0; color: #fff;">Student Management</h3>
+    <div class="admin-nav-links">
+        <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('admin_students') }}" class="active">Students</a>
+        <a href="{{ url_for('admin_questions') }}">Question Bank</a>
+        <a href="{{ url_for('admin_logs') }}">Audit Logs</a>
+        <a href="{{ url_for('admin_settings') }}">Settings</a>
+        <a href="{{ url_for('admin_export_results') }}" class="btn-primary" style="padding: 6px 12px; font-size: 13px; color: white;">Export CSV</a>
+    </div>
+</div>
+
+{% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+{% if success %}
+    <div class="alert alert-success">{{ success }}</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start;">
+    
+    <!-- Students List Panel -->
+    <div class="glass-card admin-section">
+        <h3 style="margin-bottom: 16px;">Student List</h3>
+        
+        <!-- Search bar -->
+        <form action="{{ url_for('admin_students') }}" method="GET" style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <input type="text" name="search" class="form-control" placeholder="Search by name or ID..." value="{{ search_query or '' }}" style="flex: 1;">
+            <button type="submit" class="btn-primary">Search</button>
+            {% if search_query %}
+                <a href="{{ url_for('admin_students') }}" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center;">Clear</a>
+            {% endif %}
+        </form>
+
+        {% if students %}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Full Name</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                        <tr>
+                            <td><code>{{ s.student_id }}</code></td>
+                            <td><strong>{{ s.name }}</strong></td>
+                            <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                                <form action="{{ url_for('admin_students') }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to re-allocate the exam for {{ s.name }}? This will reset all current progress, answers, scores, and proctoring violations for this candidate.');">
+                                    <input type="hidden" name="action" value="reallocate">
+                                    <input type="hidden" name="student_db_id" value="{{ s.id }}">
+                                    <button type="submit" class="btn-warning" style="padding: 6px 12px; font-size: 12px; border-radius: 980px;">Re-allocate Exam</button>
+                                </form>
+                                <form action="{{ url_for('admin_students') }}" method="POST" style="display: inline;" data-confirm-delete="Are you sure you want to delete student {{ s.name }}? This will delete all their exam sessions and results.">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="student_db_id" value="{{ s.id }}">
+                                    <button type="submit" class="btn-danger" style="padding: 6px 12px; font-size: 12px; border-radius: 980px;">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: var(--text-secondary); text-align: center; padding: 30px;">No student records found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Add Student Card -->
+    <div class="glass-card admin-section">
+        <h3 style="margin-bottom: 16px;">Register Student</h3>
+        
+        <form action="{{ url_for('admin_students') }}" method="POST">
+            <input type="hidden" name="action" value="add">
+            
+            <div class="form-group">
+                <label class="form-label" for="student_id">Student ID / Roll No</label>
+                <input type="text" id="student_id" name="student_id" class="form-control" placeholder="e.g. STU999" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="name">Full Name</label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Alice Smith" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Register Student</button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

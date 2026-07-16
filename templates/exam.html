@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Examination Window - HTML Online Exam{% endblock %}
+
+{% block content %}
+<div id="exam-page-container" 
+     data-session-id="{{ session_id }}" 
+     data-remaining-seconds="{{ remaining_seconds }}" 
+     data-total-questions="{{ questions|length }}"
+     style="user-select: none; -webkit-user-select: none;">
+     
+    <!-- Exam Dashboard Header -->
+    <div class="glass-card exam-header">
+        <div>
+            <h1 style="font-size: 22px; margin-bottom: 4px;">HTML Programming Examination</h1>
+            <div class="student-meta">
+                <div class="meta-item">ID: <strong>{{ student.student_id }}</strong></div>
+                <div class="meta-item">Candidate: <strong>{{ student.name }}</strong></div>
+            </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="text-align: right;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Time Remaining</div>
+                <div id="timer-display" class="timer-card">100:00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Progress Bar indicator -->
+    <div class="progress-container">
+        <div id="progress-bar" class="progress-bar"></div>
+    </div>
+
+    <!-- Layout Grid -->
+    <div class="exam-layout">
+        
+        <!-- Left Side: Interactive Question Panel -->
+        <div class="glass-card question-container">
+            {% for q in questions %}
+                <!-- Question Block -->
+                <div id="q-block-{{ loop.index0 }}" 
+                     class="question-block d-none" 
+                     data-question-id="{{ q.id }}" 
+                     data-index="{{ loop.index0 }}">
+                    
+                    <div class="question-badge-row">
+                        <div style="display: flex; gap: 8px;">
+                            <span class="q-badge">Question {{ loop.index }} of {{ questions|length }}</span>
+                            <span class="q-badge">{{ q.category }}</span>
+                        </div>
+                        <span class="q-badge difficulty-{{ q.difficulty|lower }}">{{ q.difficulty }}</span>
+                    </div>
+
+                    <div class="question-text">
+                        {{ q.question_text }}
+                    </div>
+
+                    <div class="options-list">
+                        {% for opt in options_by_q[q.id] %}
+                            {% set opt_letter = loop.index0 %}
+                            {% set letters = ['A', 'B', 'C', 'D'] %}
+                            
+                            {% set is_selected = false %}
+                            {% if q.id in saved_answers and saved_answers[q.id].option_id == opt.option_id %}
+                                {% set is_selected = true %}
+                            {% endif %}
+                            
+                            <div class="option-item {% if is_selected %}selected{% endif %}" 
+                                 data-option-id="{{ opt.option_id }}">
+                                <div class="option-letter">{{ letters[opt_letter] }}</div>
+                                <div class="option-text">{{ opt.option_text }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Right Side: Navigation Grid & controls -->
+        <div class="sidebar-panel">
+            
+            <!-- Grid Navigation Card -->
+            <div class="glass-card navigation-panel">
+                <div class="nav-grid-title">Question Navigator</div>
+                
+                <div class="nav-grid">
+                    {% for q in questions %}
+                        {% set is_ans = false %}
+                        {% set is_rev = false %}
+                        {% if q.id in saved_answers %}
+                            {% if saved_answers[q.id].option_id != None %}
+                                {% set is_ans = true %}
+                            {% endif %}
+                            {% if saved_answers[q.id].marked == 1 %}
+                                {% set is_rev = true %}
+                            {% endif %}
+                        {% endif %}
+                        
+                        <div class="nav-item {% if is_ans %}answered{% endif %} {% if is_rev %}review{% endif %}" 
+                             data-index="{{ loop.index0 }}" 
+                             data-q-id="{{ q.id }}">
+                            {{ loop.index }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Legend Indicator -->
+                <div class="legend-container">
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: var(--state-active);"></div>
+                        <span>Current</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(16, 185, 129, 0.2); border-color: var(--state-answered);"></div>
+                        <span>Answered</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(245, 158, 11, 0.2); border-color: var(--state-review);"></div>
+                        <span>Review</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--state-unanswered);"></div>
+                        <span>Unanswered</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page actions -->
+            <div class="glass-card" style="padding: 24px; display: flex; flex-direction: column; gap: 12px;">
+                <button id="review-btn" class="btn-warning" style="width: 100%;">
+                    Mark for Review
+                </button>
+                <button id="clear-btn" class="btn-secondary" style="width: 100%;">
+                    Clear Selection
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Core Prev/Next Action Bar -->
+    <div class="glass-card exam-controls" style="padding: 20px 24px;">
+        <button id="prev-btn" class="btn-secondary" disabled>
+            <span style="margin-right: 4px;">←</span> Previous
+        </button>
+        
+        <form id="exam-submit-form" action="{{ url_for('submit_exam_action') }}" method="POST" style="margin: 0;">
+            <button type="submit" class="btn-danger" onclick="event.preventDefault(); document.dispatchEvent(new Event('submit-exam-confirm'));">
+                Submit Examination
+            </button>
+        </form>
+        
+        <button id="next-btn" class="btn-primary">
+            Next <span style="margin-left: 4px;">→</span>
+        </button>
+    </div>
+</div>
+
+<!-- Floating Proctoring Webcam Widget -->
+<div id="webcam-container" class="glass-card" style="position: fixed; bottom: 24px; right: 24px; width: 140px; height: 140px; border-radius: 50%; overflow: hidden; border: 3px solid var(--primary-color); box-shadow: 0 8px 32px var(--glass-shadow); z-index: 999; display: none;">
+    <video id="proctor-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+    <div style="position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.65); padding: 3px 6px; border-radius: 10px; font-size: 8px; font-weight: 700; color: var(--danger-color); text-transform: uppercase; border: 1px solid rgba(255,255,255,0.15);">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--danger-color); animation: blink 1s infinite;"></span>
+        LIVE
+    </div>
+</div>
+
+<!-- Custom Security Warning Modal dialog -->
+<div id="warning-modal" class="modal-overlay">
+    <div class="modal-content glass-card">
+        <div class="warning-icon">⚠️</div>
+        <h2 id="warning-title">WARNING</h2>
+        <p id="warning-text" style="margin: 16px 0; color: var(--text-secondary);"></p>
+        <button id="warning-confirm-btn" class="btn-primary" style="margin-top: 10px; width: 100%;">I Understand & Return</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/exam.js') }}"></script>
+<script>
+    document.addEventListener("submit-exam-confirm", () => {
+        // Find current answered counts
+        const total = {{ questions|length }};
+        const answered = document.querySelectorAll(".nav-item.answered").length;
+        const unanswered = total - answered;
+        
+        let msg = `Confirm Submission:\n\nTotal Questions: ${total}\nAnswered: ${answered}\nUnanswered: ${unanswered}`;
+        if (unanswered > 0) {
+            msg += `\n\nWARNING: You have ${unanswered} unanswered question(s).`;
+        }
+        
+        if (confirm(msg)) {
+            window.removeEventListener("beforeunload", () => {});
+            document.getElementById("exam-submit-form").submit();
+        }
+    });
+</script>
+{% endblock %}

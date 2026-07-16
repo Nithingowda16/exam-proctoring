@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Questions - Admin Console{% endblock %}
+
+{% block content %}
+<!-- Sub Navigation -->
+<div class="glass-card admin-navbar">
+    <h3 style="margin: 0; color: #fff;">Question Bank</h3>
+    <div class="admin-nav-links">
+        <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('admin_students') }}">Students</a>
+        <a href="{{ url_for('admin_questions') }}" class="active">Question Bank</a>
+        <a href="{{ url_for('admin_logs') }}">Audit Logs</a>
+        <a href="{{ url_for('admin_settings') }}">Settings</a>
+        <a href="{{ url_for('admin_export_results') }}" class="btn-primary" style="padding: 6px 12px; font-size: 13px; color: white;">Export CSV</a>
+    </div>
+</div>
+
+{% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+{% if success %}
+    <div class="alert alert-success">{{ success }}</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start;">
+    
+    <!-- Left: Questions List & Filters -->
+    <div class="glass-card admin-section">
+        <h3 style="margin-bottom: 16px;">Questions Bank List</h3>
+        
+        <!-- Search and Filters -->
+        <form action="{{ url_for('admin_questions') }}" method="GET" class="search-filter-row">
+            <input type="text" name="search" class="form-control" placeholder="Search questions..." value="{{ search or '' }}">
+            
+            <select name="category" class="form-control" style="max-width: 160px;">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+            
+            <select name="difficulty" class="form-control" style="max-width: 140px;">
+                <option value="">All Difficulties</option>
+                <option value="Easy" {% if selected_difficulty == 'Easy' %}selected{% endif %}>Easy</option>
+                <option value="Medium" {% if selected_difficulty == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Hard" {% if selected_difficulty == 'Hard' %}selected{% endif %}>Hard</option>
+            </select>
+            
+            <button type="submit" class="btn-primary">Filter</button>
+            {% if search or selected_category or selected_difficulty %}
+                <a href="{{ url_for('admin_questions') }}" class="btn-secondary" style="text-decoration: none; display: flex; align-items: center;">Clear</a>
+            {% endif %}
+        </form>
+
+        <!-- Questions List Table/Details -->
+        {% if questions %}
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+                {% for q in questions %}
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; position: relative;">
+                        
+                        <!-- Top details -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <span class="q-badge" style="font-size: 11px;">#{{ q.id }}</span>
+                                <span class="q-badge" style="font-size: 11px;">{{ q.category }}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span class="q-badge difficulty-{{ q.difficulty|lower }}" style="font-size: 11px;">{{ q.difficulty }}</span>
+                                <form action="{{ url_for('admin_questions') }}" method="POST" style="display: inline;" data-confirm-delete="Are you sure you want to delete this question?">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="question_id" value="{{ q.id }}">
+                                    <button type="submit" style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 12px;">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Question Text -->
+                        <div style="font-size: 15px; font-weight: 500; margin-bottom: 12px;">{{ q.question_text }}</div>
+
+                        <!-- Options layout -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px;">
+                            <div style="padding: 6px 12px; border-radius: 6px; background: {% if q.o1_correct %}rgba(16, 185, 129, 0.15){% else %}rgba(255, 255, 255, 0.02){% endif %}; border: 1px solid {% if q.o1_correct %}rgba(16, 185, 129, 0.3){% else %}var(--glass-border){% endif %}; color: {% if q.o1_correct %}#34d399{% else %}var(--text-secondary){% endif %};">
+                                A. {{ q.option_1 }} {% if q.o1_correct %}✔{% endif %}
+                            </div>
+                            <div style="padding: 6px 12px; border-radius: 6px; background: {% if q.o2_correct %}rgba(16, 185, 129, 0.15){% else %}rgba(255, 255, 255, 0.02){% endif %}; border: 1px solid {% if q.o2_correct %}rgba(16, 185, 129, 0.3){% else %}var(--glass-border){% endif %}; color: {% if q.o2_correct %}#34d399{% else %}var(--text-secondary){% endif %};">
+                                B. {{ q.option_2 }} {% if q.o2_correct %}✔{% endif %}
+                            </div>
+                            <div style="padding: 6px 12px; border-radius: 6px; background: {% if q.o3_correct %}rgba(16, 185, 129, 0.15){% else %}rgba(255, 255, 255, 0.02){% endif %}; border: 1px solid {% if q.o3_correct %}rgba(16, 185, 129, 0.3){% else %}var(--glass-border){% endif %}; color: {% if q.o3_correct %}#34d399{% else %}var(--text-secondary){% endif %};">
+                                C. {{ q.option_3 }} {% if q.o3_correct %}✔{% endif %}
+                            </div>
+                            <div style="padding: 6px 12px; border-radius: 6px; background: {% if q.o4_correct %}rgba(16, 185, 129, 0.15){% else %}rgba(255, 255, 255, 0.02){% endif %}; border: 1px solid {% if q.o4_correct %}rgba(16, 185, 129, 0.3){% else %}var(--glass-border){% endif %}; color: {% if q.o4_correct %}#34d399{% else %}var(--text-secondary){% endif %};">
+                                D. {{ q.option_4 }} {% if q.o4_correct %}✔{% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: var(--text-secondary); text-align: center; padding: 30px;">No questions matching filters found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Right side: Add and Import Cards -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Add Single Question Card -->
+        <div class="glass-card admin-section">
+            <h3 style="margin-bottom: 16px;">Add Single Question</h3>
+            <form action="{{ url_for('admin_questions') }}" method="POST">
+                <input type="hidden" name="action" value="add">
+                
+                <div class="form-group">
+                    <label class="form-label" for="question_text">Question text</label>
+                    <textarea id="question_text" name="question_text" class="form-control" placeholder="Type question..." rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="category">Category</label>
+                    <input type="text" id="category" name="category" class="form-control" placeholder="e.g. Forms, Semantic HTML" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="difficulty">Difficulty</label>
+                    <select id="difficulty" name="difficulty" class="form-control">
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+                
+                <div style="margin: 16px 0; border-top: 1px solid var(--glass-border); padding-top: 12px;">
+                    <div class="form-label" style="margin-bottom: 8px;">Options and Correct Answer</div>
+                    
+                    <div class="form-group">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="radio" name="correct_option" value="1" checked>
+                            <input type="text" name="option_1" class="form-control" placeholder="Option A" required style="flex: 1;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="radio" name="correct_option" value="2">
+                            <input type="text" name="option_2" class="form-control" placeholder="Option B" required style="flex: 1;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="radio" name="correct_option" value="3">
+                            <input type="text" name="option_3" class="form-control" placeholder="Option C" required style="flex: 1;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="radio" name="correct_option" value="4">
+                            <input type="text" name="option_4" class="form-control" placeholder="Option D" required style="flex: 1;">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%;">Save Question</button>
+            </form>
+        </div>
+
+        <!-- Bulk CSV Import Card -->
+        <div class="glass-card admin-section">
+            <h3 style="margin-bottom: 12px;">Import Questions (CSV)</h3>
+            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.4;">
+                Select a CSV file with columns:<br>
+                <code>Question, Category, Difficulty, Option A, Option B, Option C, Option D, CorrectIndex (1-4)</code>
+            </p>
+            <form action="{{ url_for('admin_questions') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="import">
+                <div class="form-group">
+                    <input type="file" name="csv_file" class="form-control" accept=".csv" required style="padding: 8px;">
+                </div>
+                <button type="submit" class="btn-secondary" style="width: 100%; margin-top: 8px;">Bulk Import Questions</button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

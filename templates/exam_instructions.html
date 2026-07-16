@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Instructions - HTML Online Examination{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 720px; margin: 40px auto; padding: 40px;">
+    <h1 style="border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 24px; text-align: center;">HTML Programming Examination</h1>
+    
+    <div style="margin-bottom: 24px;">
+        <h3 style="margin-bottom: 12px; color: var(--color-primary);">Examination Specifications</h3>
+        <ul style="list-style: none; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Subject:</span><br>
+                <strong>HTML5 Programming</strong>
+            </li>
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Duration:</span><br>
+                <strong>{{ settings.duration_minutes }} Minutes</strong>
+            </li>
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Total Questions:</span><br>
+                <strong>{{ settings.total_questions }} MCQs</strong>
+            </li>
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Passing Grade:</span><br>
+                <strong>{{ settings.passing_marks }}% Score</strong>
+            </li>
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Negative Marking:</span><br>
+                <strong>{% if settings.negative_marking > 0 %}{{ settings.negative_marking }} marks per incorrect{% else %}None{% endif %}</strong>
+            </li>
+            <li style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                <span style="color: var(--text-secondary); font-size: 13px;">Weightage:</span><br>
+                <strong>1.0 Mark per Correct Answer</strong>
+            </li>
+        </ul>
+    </div>
+
+    <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+        <h3 style="color: #f87171; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            ⚠️ Secure Browser Rules (Strict Enforcement)
+        </h3>
+        <ul style="padding-left: 20px; font-size: 14px; color: #fca5a5; display: flex; flex-direction: column; gap: 8px;">
+            <li><strong>Fullscreen Requirement</strong>: The exam is loaded in forced fullscreen. Minimizing or exiting fullscreen triggers a violation.</li>
+            <li><strong>Tab Switching</strong>: Opening other tabs, windows, or losing application focus logs warning violations.</li>
+            <li><strong>Input Restriction</strong>: Context menus, right-clicking, text selection, copy-pasting, and common shortcuts (F12, developer settings, page refreshes) are strictly disabled.</li>
+            <li><strong>Violation Cap</strong>: The system permits up to 2 security warnings. The <strong>third violation automatically terminates and submits</strong> your exam.</li>
+        </ul>
+    </div>
+
+    <div style="text-align: center;">
+        <form action="{{ url_for('start_exam') }}" method="POST">
+            {% if has_active_session %}
+                <button type="submit" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
+                    Resume Your Active Examination
+                </button>
+            {% else %}
+                <button type="submit" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
+                    Enter Secure Examination Area
+                </button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - Online Exam System{% endblock %}
+
+{% block content %}
+<!-- Administrative Sub-Navbar -->
+<div class="glass-card admin-navbar">
+    <h3 style="margin: 0; color: #fff;">Control Console</h3>
+    <div class="admin-nav-links">
+        <a href="{{ url_for('admin_dashboard') }}" class="active">Dashboard</a>
+        <a href="{{ url_for('admin_students') }}">Students</a>
+        <a href="{{ url_for('admin_questions') }}">Question Bank</a>
+        <a href="{{ url_for('admin_logs') }}">Audit Logs</a>
+        <a href="{{ url_for('admin_settings') }}">Settings</a>
+        <a href="{{ url_for('admin_export_results') }}" class="btn-primary" style="padding: 6px 12px; font-size: 13px; color: white;">Export CSV</a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="glass-card stat-card">
+        <div class="stat-label">Registered Students</div>
+        <div class="stat-value">{{ total_students }}</div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-label">Exams Completed</div>
+        <div class="stat-value">{{ exams_completed }}</div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-label">Average Score</div>
+        <div class="stat-value">{{ avg_percentage }}%</div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-label">Pass Rate</div>
+        <div class="stat-value" style="color: var(--color-success);">{{ pass_rate }}%</div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-label">Violations Logged</div>
+        <div class="stat-value" style="color: {% if total_violations > 0 %}var(--color-danger){% else %}var(--text-secondary){% endif %};">
+            {{ total_violations }}
+        </div>
+    </div>
+</div>
+
+<!-- Live Proctoring Webcam Monitor -->
+<div class="glass-card admin-section" style="margin-top: 24px;">
+    <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #34c759; animation: blink 1.5s infinite; display: inline-block;"></span>
+        Live Proctoring Webcam Monitor
+    </h3>
+    
+    <div id="live-proctor-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
+        <!-- Dynamic active student cards will be injected here by JS -->
+    </div>
+    
+    <div id="no-active-exams" style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
+        No candidates are currently writing exams.
+    </div>
+</div>
+
+<!-- Grid for Recents -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+    
+    <!-- Recent Exam Scores -->
+    <div class="glass-card admin-section">
+        <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Recent Exam Scores</h3>
+        {% if recent_results %}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Submitted At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recent_results %}
+                        <tr>
+                            <td>
+                                <strong>{{ r.name }}</strong><br>
+                                <span style="font-size: 11px; color: var(--text-secondary);">ID: {{ r.student_id }}</span>
+                            </td>
+                            <td>{{ r.score }} ({{ r.percentage|round(1) }}%)</td>
+                            <td>
+                                <span class="badge-pill {% if r.pass_status == 'Pass' %}badge-pill-pass{% else %}badge-pill-fail{% endif %}">
+                                    {{ r.pass_status }}
+                                </span>
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">{{ r.submitted_at }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No exam logs found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Cheating Violations -->
+    <div class="glass-card admin-section">
+        <h3 style="margin-bottom: 12px; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">Security Logs (Recent Warnings)</h3>
+        {% if recent_violations %}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Incident</th>
+                        <th>Warning</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in recent_violations %}
+                        <tr>
+                            <td>
+                                <strong>{{ v.name }}</strong><br>
+                                <span style="font-size: 11px; color: var(--text-secondary);">ID: {{ v.student_id }}</span>
+                            </td>
+                            <td>
+                                <span class="badge-pill badge-pill-violation" style="font-size: 11px;">
+                                    {{ v.violation_type }}
+                                </span>
+                            </td>
+                            <td style="text-align: center;"><strong>{{ v.warning_number }}/3</strong></td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">{{ v.timestamp }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No security violations logged.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const grid = document.getElementById("live-proctor-grid");
+        const noActive = document.getElementById("no-active-exams");
+        
+        function pollActiveSessions() {
+            fetch("/api/active_sessions")
+                .then(res => res.json())
+                .then(data => {
+                    const sessions = data.sessions || [];
+                    if (sessions.length === 0) {
+                        grid.innerHTML = "";
+                        noActive.style.display = "block";
+                        return;
+                    }
+                    noActive.style.display = "none";
+                    
+                    const activeSessionIds = new Set();
+                    
+                    sessions.forEach(s => {
+                        activeSessionIds.add(s.session_id);
+                        let card = document.getElementById(`proctor-card-${s.session_id}`);
+                        
+                        // Calculate remaining time
+                        const expires = new Date(s.expires_at).getTime();
+                        const now = new Date().getTime();
+                        const diff = expires - now;
+                        let timeStr = "Expired";
+                        if (diff > 0) {
+                            const mins = Math.floor(diff / 60000);
+                            const secs = Math.floor((diff % 60000) / 1000);
+                            timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                        }
+                        
+                        const frameSrc = s.latest_frame || '';
+                        const hasFrame = frameSrc && frameSrc.startsWith("data:image");
+                        
+                        const strikeColor = s.warning_count >= 2 ? "var(--danger-color)" : (s.warning_count === 1 ? "var(--warning-color)" : "var(--success-color)");
+                        
+                        if (!card) {
+                            card = document.createElement("div");
+                            card.id = `proctor-card-${s.session_id}`;
+                            card.className = "glass-card";
+                            card.style.padding = "14px";
+                            card.style.display = "flex";
+                            card.style.flexDirection = "column";
+                            card.style.alignItems = "center";
+                            card.style.gap = "8px";
+                            card.style.border = "1px solid var(--card-border)";
+                            card.style.textAlign = "center";
+                            
+                            card.innerHTML = `
+                                <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; width: 100%;">
+                                    ${s.student_name}
+                                </div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-top: -4px;">
+                                    ${s.student_roll}
+                                </div>
+                                <div style="width: 140px; height: 105px; background: rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; border: 1px solid var(--card-border);">
+                                    <img id="proctor-img-${s.session_id}" src="${frameSrc}" style="width: 100%; height: 100%; object-fit: cover; display: ${hasFrame ? 'block' : 'none'}; transform: scaleX(-1);">
+                                    <div id="proctor-placeholder-${s.session_id}" style="font-size: 9px; color: var(--text-muted); padding: 8px; display: ${hasFrame ? 'none' : 'block'};">
+                                        <div style="margin: 0 auto 6px auto; width: 14px; height: 14px; border: 2px solid var(--text-muted); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                        Connecting Feed...
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; width: 100%; font-size: 11px; margin-top: 4px;">
+                                    <span style="color: var(--text-secondary);">Timer: <strong id="proctor-timer-${s.session_id}">${timeStr}</strong></span>
+                                    <span style="color: ${strikeColor};">Strikes: <strong id="proctor-strikes-${s.session_id}">${s.warning_count}/3</strong></span>
+                                </div>
+                            `;
+                            grid.appendChild(card);
+                        } else {
+                            const img = document.getElementById(`proctor-img-${s.session_id}`);
+                            const placeholder = document.getElementById(`proctor-placeholder-${s.session_id}`);
+                            const timer = document.getElementById(`proctor-timer-${s.session_id}`);
+                            const strikes = document.getElementById(`proctor-strikes-${s.session_id}`);
+                            
+                            if (hasFrame) {
+                                img.src = frameSrc;
+                                img.style.display = "block";
+                                placeholder.style.display = "none";
+                            } else {
+                                img.style.display = "none";
+                                placeholder.style.display = "block";
+                            }
+                            
+                            timer.textContent = timeStr;
+                            strikes.textContent = `${s.warning_count}/3`;
+                            strikes.parentElement.style.color = strikeColor;
+                        }
+                    });
+                    
+                    Array.from(grid.children).forEach(card => {
+                        const id = parseInt(card.id.replace("proctor-card-", ""));
+                        if (!activeSessionIds.has(id)) {
+                            card.remove();
+                        }
+                    });
+                })
+                .catch(err => console.error("Error polling proctoring sessions:", err));
+        }
+        
+        pollActiveSessions();
+        setInterval(pollActiveSessions, 4000);
+    });
+</script>
+
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
