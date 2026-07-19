@@ -29,7 +29,7 @@ NEMS is a professional, secure, and modern online examination portal designed in
   * **Interactive Dashboard**: Features score summaries, completion rates, audit log listings, and a **Real-Time Proctoring Monitor** grid showing live-refreshing webcam captures of all active candidates.
   * **Candidate Management**: Registered student roster controls, including registration additions, candidate deletions, and a **Re-allocate Exam** feature to reset a student's session and clear previous attempts.
   * **Question Bank Editor**: Supports search filters, difficulty updates, and bulk question loading via CSV file uploads.
-  * **Settings Controls**: Adjust exam timers, active question quotas, passing mark thresholds, and negative marking penalty rates.
+  * **Settings Controls**: Adjust exam timers, active question quotas, passing mark thresholds, negative marking penalty rates, and **Dynamic Exam Window Scheduling** (toggle schedule enforcement ON/OFF and configure custom start/end datetimes).
 
 ---
 

@@ -9,10 +9,10 @@
     
     <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 32px;">
         The HTML Programming Examination is currently locked.<br>
-        It is scheduled to start on <strong>Friday, July 17, 2026, at 07:00 PM IST</strong>.
+        It is scheduled to start on <strong>{{ start_display }}</strong>.
     </p>
 
-    <!-- Beautiful Apple Countdown Timer Widget -->
+    <!-- Apple Countdown Timer Widget -->
     <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); padding: 20px; border-radius: 14px; margin-bottom: 32px;">
         <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px;">
             Unlocks In
@@ -29,8 +29,7 @@
 {% block scripts %}
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // Target start time: Friday, July 17, 2026, 19:00:00 IST (UTC+5:30)
-        const targetTime = new Date("2026-07-17T19:00:00+05:30").getTime();
+        const targetTime = new Date("{{ start_iso }}").getTime();
         const display = document.getElementById("countdown-timer");
         
         function updateTimer() {

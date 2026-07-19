@@ -53,28 +53,39 @@ app.permanent_session_lifetime = timedelta(hours=3)
 # ----------------- Timezone and Scheduled Exam Window -----------------
 from datetime import timezone
 
-# Scheduled window: Friday, July 17, 2026, 7:00 PM to 9:00 PM IST (UTC+5:30)
-EXAM_START_IST = datetime(2026, 7, 17, 19, 0, 0)
-EXAM_END_IST = datetime(2026, 7, 17, 21, 0, 0)
-
 def get_ist_now():
     """Returns the current datetime in Indian Standard Time (IST) timezone."""
     return datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
 
 def check_exam_window():
-    """Determines the current status of the scheduled examination slot.
+    """Determines the current status of the scheduled examination slot based on DB settings.
     Returns:
         status (str): 'upcoming', 'active', or 'ended'
         seconds (int): time remaining until next transition
     """
+    settings = get_settings()
+    
+    # If scheduling restriction is disabled by Admin, exam is ALWAYS active!
+    if settings.get("schedule_enabled") != "1":
+        return 'active', 999999
+        
+    try:
+        start_dt = datetime.strptime(settings["schedule_start"], "%Y-%m-%d %H:%M")
+        end_dt = datetime.strptime(settings["schedule_end"], "%Y-%m-%d %H:%M")
+    except Exception:
+        # Fallback to July 19, 2026 19:00 - 20:40
+        start_dt = datetime(2026, 7, 19, 19, 0, 0)
+        end_dt = datetime(2026, 7, 19, 20, 40, 0)
+
     now = get_ist_now().replace(tzinfo=None)
-    if now < EXAM_START_IST:
-        diff = int((EXAM_START_IST - now).total_seconds())
+    
+    if now < start_dt:
+        diff = int((start_dt - now).total_seconds())
         return 'upcoming', diff
-    elif now > EXAM_END_IST:
+    elif now > end_dt:
         return 'ended', 0
     else:
-        diff = int((EXAM_END_IST - now).total_seconds())
+        diff = int((end_dt - now).total_seconds())
         return 'active', diff
 
 # Auto-migrate: Add latest_frame column to exam_sessions if missing
@@ -96,12 +107,23 @@ def get_settings():
     settings = {row["key"]: row["value"] for row in cursor.fetchall()}
     conn.close()
     
+    start_str = settings.get("schedule_start", "2026-07-19 19:00")
+    end_str = settings.get("schedule_end", "2026-07-19 20:40")
+    
+    start_dt_val = start_str.replace(" ", "T")
+    end_dt_val = end_str.replace(" ", "T")
+    
     # Defaults in case settings are missing
     return {
         "passing_marks": float(settings.get("passing_marks", 50)),
         "negative_marking": float(settings.get("negative_marking", 0)),
         "duration_minutes": int(settings.get("duration_minutes", 100)),
-        "total_questions": int(settings.get("total_questions", 100))
+        "total_questions": int(settings.get("total_questions", 100)),
+        "schedule_enabled": settings.get("schedule_enabled", "1"),
+        "schedule_start": start_str,
+        "schedule_end": end_str,
+        "schedule_start_datetime": start_dt_val,
+        "schedule_end_datetime": end_dt_val
     }
 
 # ----------------- Middlewares -----------------
@@ -177,14 +199,31 @@ def instructions():
     if not g.student:
         return redirect(url_for("index"))
         
+    settings = get_settings()
+
     # Check if the exam window is active/upcoming/ended
     window_status, _ = check_exam_window()
     if window_status == 'upcoming':
-        return render_template("exam_upcoming.html")
+        s_start = settings["schedule_start"]
+        try:
+            dt_obj = datetime.strptime(s_start, "%Y-%m-%d %H:%M")
+            start_display = dt_obj.strftime("%A, %B %d, %Y, at %I:%M %p IST")
+            start_iso = dt_obj.strftime("%Y-%m-%dT%H:%M:00+05:30")
+        except Exception:
+            start_display = s_start + " IST"
+            start_iso = "2026-07-19T19:00:00+05:30"
+            
+        return render_template("exam_upcoming.html", start_display=start_display, start_iso=start_iso)
+        
     elif window_status == 'ended':
-        return render_template("exam_ended.html")
-
-    settings = get_settings()
+        s_end = settings["schedule_end"]
+        try:
+            dt_obj = datetime.strptime(s_end, "%Y-%m-%d %H:%M")
+            end_display = dt_obj.strftime("%A, %B %d, %Y, at %I:%M %p IST")
+        except Exception:
+            end_display = s_end + " IST"
+            
+        return render_template("exam_ended.html", end_display=end_display)
     
     # Check if they have an ongoing active session
     conn = get_db_connection()
@@ -244,14 +283,21 @@ def start_exam():
         (g.student["id"],)
     )
     session_row = cursor.fetchone()
-    
     if not session_row:
         # Create a new session using Indian Standard Time (IST)
         duration_minutes = settings["duration_minutes"]
         started_at = get_ist_now().replace(tzinfo=None)
         duration_expiry = started_at + timedelta(minutes=duration_minutes)
-        # Cap session expiry to the scheduled end of the exam slot (20:40)
-        expires_at = min(duration_expiry, EXAM_END_IST)
+        
+        if settings.get("schedule_enabled") == "1":
+            try:
+                end_dt = datetime.strptime(settings["schedule_end"], "%Y-%m-%d %H:%M")
+                expires_at = min(duration_expiry, end_dt)
+            except Exception:
+                expires_at = duration_expiry
+        else:
+            expires_at = duration_expiry
+
         random_seed = random.randint(1, 1000000)
         
         cursor.execute(
@@ -1120,6 +1166,10 @@ def admin_settings():
         duration_minutes = request.form.get("duration_minutes", "").strip()
         total_questions = request.form.get("total_questions", "").strip()
         
+        schedule_enabled = "1" if request.form.get("schedule_enabled") == "1" else "0"
+        schedule_start = request.form.get("schedule_start", "").replace("T", " ").strip()
+        schedule_end = request.form.get("schedule_end", "").replace("T", " ").strip()
+        
         try:
             p_val = float(passing_marks)
             n_val = float(negative_marking)
@@ -1136,7 +1186,10 @@ def admin_settings():
                     "passing_marks": str(p_val),
                     "negative_marking": str(n_val),
                     "duration_minutes": str(d_val),
-                    "total_questions": str(q_val)
+                    "total_questions": str(q_val),
+                    "schedule_enabled": schedule_enabled,
+                    "schedule_start": schedule_start,
+                    "schedule_end": schedule_end
                 }
                 
                 for key, val in settings_to_update.items():

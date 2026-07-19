@@ -1454,11 +1454,14 @@ def seed_database():
             ("passing_marks", "50"),
             ("negative_marking", "0"),
             ("duration_minutes", "100"),
-            ("total_questions", "100")
+            ("total_questions", "100"),
+            ("schedule_enabled", "1"),
+            ("schedule_start", "2026-07-19 19:00"),
+            ("schedule_end", "2026-07-19 20:40")
         ]
         for key, value in default_settings:
             cursor.execute(
-                "INSERT OR IGNORE INTO exam_settings (key, value) VALUES (?, ?);",
+                "INSERT OR REPLACE INTO exam_settings (key, value) VALUES (?, ?);",
                 (key, value)
             )
         print("Default exam settings initialized.")
