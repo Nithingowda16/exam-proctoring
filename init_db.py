@@ -1451,8 +1451,8 @@ def seed_database():
 
         # 2. Insert default settings
         default_settings = [
-            ("passing_marks", "50"),
-            ("negative_marking", "0"),
+            ("passing_marks", "75"),
+            ("negative_marking", "0.35"),
             ("duration_minutes", "100"),
             ("total_questions", "100"),
             ("schedule_enabled", "1"),
@@ -1461,7 +1461,7 @@ def seed_database():
         ]
         for key, value in default_settings:
             cursor.execute(
-                "INSERT OR REPLACE INTO exam_settings (key, value) VALUES (?, ?);",
+                "INSERT OR IGNORE INTO exam_settings (key, value) VALUES (?, ?);",
                 (key, value)
             )
         print("Default exam settings initialized.")

@@ -115,8 +115,8 @@ def get_settings():
     
     # Defaults in case settings are missing
     return {
-        "passing_marks": float(settings.get("passing_marks", 50)),
-        "negative_marking": float(settings.get("negative_marking", 0)),
+        "passing_marks": float(settings.get("passing_marks", 75)),
+        "negative_marking": float(settings.get("negative_marking", 0.35)),
         "duration_minutes": int(settings.get("duration_minutes", 100)),
         "total_questions": int(settings.get("total_questions", 100)),
         "schedule_enabled": settings.get("schedule_enabled", "1"),
