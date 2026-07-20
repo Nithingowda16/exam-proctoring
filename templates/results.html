@@ -27,7 +27,7 @@
             {% endif %}
         </h2>
         <p style="color: var(--text-secondary); margin-top: 6px;">
-            Required Passing Percentage: 50% | Obtained: <strong>{{ result.percentage|round(1) }}%</strong>
+            Required Score Percentage | Obtained: <strong>{{ result.percentage|round(1) }}%</strong>
         </p>
     </div>
 
@@ -47,7 +47,29 @@
         </div>
     </div>
 
-    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; text-align: left; max-width: 500px; margin: 0 auto 32px; display: flex; flex-direction: column; gap: 10px;">
+    <!-- Topic Mastery & Category Analytics Breakdown -->
+    {% if category_analytics %}
+    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px; text-align: left; max-width: 600px; margin: 0 auto 32px;">
+        <h3 style="font-size: 16px; margin-bottom: 16px; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">
+            📊 Topic Mastery & Category Breakdown
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% for cat, data in category_analytics.items() %}
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                    <span style="font-weight: 600; color: var(--text-primary);">{{ cat }}</span>
+                    <span style="color: var(--text-secondary);">{{ data.correct }}/{{ data.total }} ({{ data.percentage }}%)</span>
+                </div>
+                <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 980px; overflow: hidden;">
+                    <div style="width: {{ data.percentage }}%; height: 100%; background: {% if data.percentage >= 75 %}var(--success-color){% elif data.percentage >= 50 %}var(--warning-color){% else %}var(--danger-color){% endif %}; border-radius: 980px; transition: width 0.6s ease;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; text-align: left; max-width: 600px; margin: 0 auto 32px; display: flex; flex-direction: column; gap: 10px;">
         <div style="display: flex; justify-content: space-between; font-size: 14px;">
             <span style="color: var(--text-secondary);">Student Name:</span>
             <strong>{{ student.name }}</strong>
@@ -62,8 +84,84 @@
         </div>
     </div>
 
+    <!-- Pass Certificate PDF Download for successful candidates -->
+    {% if is_pass %}
+    <div style="margin-bottom: 24px;">
+        <button id="download-cert-btn" onclick="generateCertificatePDF()" class="btn-primary" style="padding: 14px 28px; font-size: 14px; background: linear-gradient(135deg, #34c759, #30d158); border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(52, 199, 89, 0.3);">
+            📜 Download Official Pass Certificate (PDF)
+        </button>
+    </div>
+
+    <!-- Hidden Printable PDF Certificate Template -->
+    <div id="pdf-certificate-template" style="display: none;">
+        <div style="width: 800px; padding: 50px; background: #0b0e14; color: #ffffff; border: 10px solid #34c759; border-radius: 16px; font-family: sans-serif; text-align: center; box-sizing: border-box; position: relative;">
+            <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 3px; color: #34c759; margin-bottom: 15px; font-weight: 700;">
+                NxtWave Examination Authority
+            </div>
+            <h1 style="font-size: 36px; margin: 0 0 10px 0; color: #ffffff; font-weight: 800;">
+                CERTIFICATE OF ACHIEVEMENT
+            </h1>
+            <p style="font-size: 14px; color: #a1a1a6; margin-bottom: 40px;">
+                This certifies that the candidate has successfully passed the official online examination.
+            </p>
+            <div style="font-size: 14px; color: #86868b; text-transform: uppercase;">PROUDLY PRESENTED TO</div>
+            <h2 style="font-size: 32px; color: #34c759; margin: 10px 0 20px 0; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; display: inline-block;">
+                {{ student.name }}
+            </h2>
+            <div style="font-size: 14px; color: #f5f5f7; margin-bottom: 30px;">
+                Student ID: <strong>{{ student.student_id }}</strong>
+            </div>
+            <p style="font-size: 16px; color: #d2d2d7; line-height: 1.6; max-width: 600px; margin: 0 auto 40px auto;">
+                For outstanding performance in the <strong>HTML Programming Examination</strong> with a score percentage of <strong>{{ result.percentage|round(1) }}%</strong>.
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; font-size: 12px; color: #86868b;">
+                <div style="text-align: left;">
+                    <div>Date Issued: <strong>{{ result.submitted_at }}</strong></div>
+                    <div>Status: <strong style="color: #34c759;">VERIFIED PASS</strong></div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 700; color: #ffffff;">NEMS Proctoring System</div>
+                    <div>Digital Verification Seal</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div>
-        <a href="{{ url_for('logout') }}" class="btn-primary">Logout from System</a>
+        <a href="{{ url_for('logout') }}" class="btn-secondary" style="padding: 10px 24px; text-decoration: none; border-radius: 980px;">Logout from System</a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    function generateCertificatePDF() {
+        const certEl = document.getElementById("pdf-certificate-template");
+        if (!certEl) return;
+        
+        const btn = document.getElementById("download-cert-btn");
+        if (btn) btn.textContent = "Generating PDF...";
+        
+        certEl.style.display = "block";
+        
+        const opt = {
+            margin:       0.2,
+            filename:     `NEMS_Certificate_${"{{ student.student_id }}"}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, backgroundColor: '#0b0e14' },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+        
+        html2pdf().set(opt).from(certEl.firstElementChild).save().then(() => {
+            certEl.style.display = "none";
+            if (btn) btn.textContent = "📜 Download Official Pass Certificate (PDF)";
+        }).catch(err => {
+            console.error("PDF generation error:", err);
+            certEl.style.display = "none";
+            if (btn) btn.textContent = "📜 Download Official Pass Certificate (PDF)";
+        });
+    }
+</script>
 {% endblock %}

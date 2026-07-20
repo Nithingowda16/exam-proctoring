@@ -624,6 +624,64 @@ def get_active_sessions():
     sessions = [dict(row) for row in rows]
     return jsonify({"success": True, "sessions": sessions})
 
+@app.route("/api/send_announcement", methods=["POST"])
+def send_announcement():
+    """Admin endpoint to set a live broadcast announcement for all candidates."""
+    if not g.admin:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+        
+    data = request.get_json() or {}
+    message = data.get("message", "").strip()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO exam_settings (key, value) VALUES ('live_announcement', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;",
+        (message,)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": message})
+
+@app.route("/api/get_announcement", methods=["GET"])
+def get_announcement():
+    """Student endpoint to fetch active broadcast announcements."""
+    settings = get_settings()
+    message = settings.get("live_announcement", "")
+    return jsonify({"success": True, "message": message})
+
+@app.route("/api/terminate_session", methods=["POST"])
+def terminate_session():
+    """Admin endpoint to forcibly terminate a cheating candidate's exam session."""
+    if not g.admin:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+        
+    data = request.get_json() or {}
+    session_id = data.get("session_id")
+    if not session_id:
+        return jsonify({"success": False, "error": "Missing session_id"}), 400
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Mark session as submitted
+    now = get_ist_now().replace(tzinfo=None)
+    submitted_at_str = now.strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute(
+        "UPDATE exam_sessions SET is_submitted = 1, submitted_at = ? WHERE id = ?;",
+        (submitted_at_str, session_id)
+    )
+    
+    # Log violation
+    cursor.execute(
+        "INSERT INTO violations (session_id, violation_type, warning_number, timestamp) VALUES (?, 'Session Force-Terminated by Administrator', 3, ?);",
+        (session_id, submitted_at_str)
+    )
+    
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "Session terminated successfully"})
+
 # ----------------- Submission & Results -----------------
 @app.route("/submit_exam", methods=["POST"])
 def submit_exam_action():
@@ -742,6 +800,36 @@ def submit_exam_processing(session_id, student_id):
     conn.commit()
     conn.close()
 
+def get_category_analytics(session_id):
+    """Calculates category-wise question performance for a session."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT q.category, sa.selected_option_id, o.is_correct
+        FROM exam_question_order eqo
+        JOIN questions q ON eqo.question_id = q.id
+        LEFT JOIN student_answers sa ON (sa.session_id = eqo.session_id AND sa.question_id = q.id)
+        LEFT JOIN options o ON sa.selected_option_id = o.id
+        WHERE eqo.session_id = ?;
+    """, (session_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    cats = {}
+    for r in rows:
+        cat = r["category"] or "General HTML"
+        if cat not in cats:
+            cats[cat] = {"total": 0, "correct": 0, "percentage": 0}
+        cats[cat]["total"] += 1
+        if r["is_correct"] == 1:
+            cats[cat]["correct"] += 1
+            
+    for cat in cats:
+        if cats[cat]["total"] > 0:
+            cats[cat]["percentage"] = round((cats[cat]["correct"] / cats[cat]["total"]) * 100, 1)
+            
+    return cats
+
 @app.route("/results")
 def results():
     """Displays the result scorecard for the current student."""
@@ -775,11 +863,14 @@ def results():
     secs = seconds % 60
     time_taken_formatted = f"{minutes:02d}m {secs:02d}s"
     
+    category_analytics = get_category_analytics(result_row["session_id"])
+    
     return render_template(
         "results.html",
         student=g.student,
         result=result_row,
-        time_taken=time_taken_formatted
+        time_taken=time_taken_formatted,
+        category_analytics=category_analytics
     )
 
 # ----------------- Admin Routes -----------------

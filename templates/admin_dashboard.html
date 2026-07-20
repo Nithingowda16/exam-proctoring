@@ -42,6 +42,18 @@
     </div>
 </div>
 
+<!-- Live Announcement Control Bar -->
+<div class="glass-card admin-section" style="margin-top: 24px; padding: 16px 20px;">
+    <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+        📢 Broadcast Live Announcement to Active Candidates
+    </h4>
+    <div style="display: flex; gap: 12px;">
+        <input type="text" id="announcement-input" class="form-control" placeholder="Type message for candidates (e.g. 'Notice: 10 minutes remaining'). Leave empty to clear." style="flex: 1;">
+        <button onclick="sendLiveAnnouncement()" class="btn-primary" style="padding: 8px 20px; font-size: 13px;">Broadcast</button>
+    </div>
+    <span id="announcement-status" style="font-size: 11px; color: var(--success-color); display: none; margin-top: 6px;">Broadcast updated!</span>
+</div>
+
 <!-- Live Proctoring Webcam Monitor -->
 <div class="glass-card admin-section" style="margin-top: 24px;">
     <h3 style="margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
@@ -206,6 +218,9 @@
                                     <span style="color: var(--text-secondary);">Timer: <strong id="proctor-timer-${s.session_id}">${timeStr}</strong></span>
                                     <span style="color: ${strikeColor};">Strikes: <strong id="proctor-strikes-${s.session_id}">${s.warning_count}/3</strong></span>
                                 </div>
+                                <button onclick="forceTerminateSession(${s.session_id})" style="margin-top: 6px; width: 100%; padding: 4px 8px; font-size: 10px; background: rgba(255, 59, 48, 0.15); color: #ff453a; border: 1px solid rgba(255, 59, 48, 0.4); border-radius: 4px; cursor: pointer; font-weight: 600;">
+                                    🚫 Terminate Session
+                                </button>
                             `;
                             grid.appendChild(card);
                         } else {
@@ -240,8 +255,46 @@
         }
         
         pollActiveSessions();
-        setInterval(pollActiveSessions, 4000);
+        setInterval(pollActiveSessions, 2000);
     });
+
+    function sendLiveAnnouncement() {
+        const input = document.getElementById("announcement-input");
+        const status = document.getElementById("announcement-status");
+        if (!input) return;
+        const msg = input.value;
+        
+        fetch("/api/send_announcement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: msg })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                status.style.display = "inline";
+                setTimeout(() => { status.style.display = "none"; }, 3000);
+            }
+        });
+    }
+
+    function forceTerminateSession(sessionId) {
+        if (!confirm("Are you sure you want to forcibly terminate this student's exam session?")) return;
+        
+        fetch("/api/terminate_session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sessionId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("Candidate session terminated successfully.");
+                const card = document.getElementById(`proctor-card-${sessionId}`);
+                if (card) card.remove();
+            }
+        });
+    }
 </script>
 
 <style>
