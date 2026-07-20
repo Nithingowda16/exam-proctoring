@@ -348,12 +348,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showQuestion(0);
     });
 
-    let audioContext = null;
-    let audioAnalyser = null;
-    let noiseConsecutiveCount = 0;
-    let noFaceConsecutiveCount = 0;
-    let multiFaceConsecutiveCount = 0;
-
     function initWebcam() {
         const video = document.getElementById("proctor-video");
         const container = document.getElementById("webcam-container");
@@ -366,26 +360,12 @@ document.addEventListener("DOMContentLoaded", () => {
         
         isCameraInitializing = true; // Block window blur violations during browser permission prompt
         
-        navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320 }, audio: true })
+        navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320 } })
             .then(stream => {
                 isCameraInitializing = false;
                 video.srcObject = stream;
                 container.style.display = "block";
-                
-                // Audio Noise Monitoring
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = audioContext.createMediaStreamSource(stream);
-                    audioAnalyser = audioContext.createAnalyser();
-                    audioAnalyser.fftSize = 256;
-                    source.connect(audioAnalyser);
-                    startAudioMonitoring();
-                } catch (e) {
-                    console.log("Audio analysis init error:", e);
-                }
-
                 startFrameUploading();
-                startAnnouncementPolling();
             })
             .catch(err => {
                 isCameraInitializing = false;
@@ -396,52 +376,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     triggerAutoSubmit("Webcam Access Denied / Blocked");
                 }, 1500);
             });
-    }
-
-    function startAudioMonitoring() {
-        if (!audioAnalyser) return;
-        const dataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
-        
-        setInterval(() => {
-            if (isSubmitting) return;
-            audioAnalyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-            }
-            const average = sum / dataArray.length;
-            // RMS threshold for sustained speech / whispering
-            if (average > 45) {
-                noiseConsecutiveCount++;
-                if (noiseConsecutiveCount >= 3) {
-                    noiseConsecutiveCount = 0;
-                    triggerViolation("Audio Anomaly: Sustained Talking / Noise Detected");
-                }
-            } else {
-                noiseConsecutiveCount = Math.max(0, noiseConsecutiveCount - 1);
-            }
-        }, 1000);
-    }
-
-    function startAnnouncementPolling() {
-        const banner = document.getElementById("live-announcement-banner");
-        const textEl = document.getElementById("announcement-text");
-        if (!banner || !textEl) return;
-
-        setInterval(() => {
-            if (isSubmitting) return;
-            fetch("/api/get_announcement")
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success && data.message) {
-                        textEl.textContent = data.message;
-                        banner.style.display = "flex";
-                    } else {
-                        banner.style.display = "none";
-                    }
-                })
-                .catch(err => console.log("Announcement poll error:", err));
-        }, 3000);
     }
 
     function startFrameUploading() {
@@ -455,9 +389,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (isSubmitting || !video.srcObject) return;
             try {
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL("image/jpeg", 0.55); // High-fidelity stream capture
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.5); // 50% quality is highly compressed and tiny
                 
-                // Post frame feed to admin proctor monitor
                 fetch("/api/upload_frame", {
                     method: "POST",
                     headers: {
@@ -468,82 +401,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         frame: dataUrl
                     })
                 });
-
-                // AI Canvas Face & Skin-Tone Cluster Detection
-                analyzeFrameLuminanceAndClusters(ctx, canvas.width, canvas.height);
-
             } catch (e) {
                 console.error("Frame capture error:", e);
             }
-        }, 2000); // 2-second fast live video streaming
-    }
-
-    function analyzeFrameLuminanceAndClusters(ctx, width, height) {
-        try {
-            const imgData = ctx.getImageData(0, 0, width, height);
-            const data = imgData.data;
-            let skinPixels = 0;
-            let totalLuminance = 0;
-            const leftHalfSkin = 0;
-            const rightHalfSkin = 0;
-
-            let skinCentroidsX = [];
-
-            for (let i = 0; i < data.length; i += 16) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                
-                const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                totalLuminance += lum;
-
-                // Skin-tone color range detection (RGB / YCbCr thresholding)
-                if (r > 60 && g > 40 && b > 20 && (r - g) > 10 && r > b) {
-                    skinPixels++;
-                    const pixelIdx = i / 4;
-                    const x = pixelIdx % width;
-                    skinCentroidsX.push(x);
-                }
-            }
-
-            const totalSampled = data.length / 16;
-            const avgLum = totalLuminance / totalSampled;
-            const skinRatio = skinPixels / totalSampled;
-
-            // Check if candidate face is missing / lens covered / left frame
-            if (avgLum < 12 || skinRatio < 0.04) {
-                noFaceConsecutiveCount++;
-                if (noFaceConsecutiveCount >= 3) {
-                    noFaceConsecutiveCount = 0;
-                    triggerViolation("AI Proctor: Candidate Face Not Visible / Lens Blocked");
-                }
-            } else {
-                noFaceConsecutiveCount = Math.max(0, noFaceConsecutiveCount - 1);
-            }
-
-            // Check if multiple face skin-tone clusters exist across left and right halves
-            if (skinCentroidsX.length > 50) {
-                let leftCount = 0;
-                let rightCount = 0;
-                const mid = width / 2;
-                skinCentroidsX.forEach(x => {
-                    if (x < mid - 40) leftCount++;
-                    if (x > mid + 40) rightCount++;
-                });
-
-                if (leftCount > 35 && rightCount > 35) {
-                    multiFaceConsecutiveCount++;
-                    if (multiFaceConsecutiveCount >= 3) {
-                        multiFaceConsecutiveCount = 0;
-                        triggerViolation("AI Proctor: Multiple Candidates Detected");
-                    }
-                } else {
-                    multiFaceConsecutiveCount = Math.max(0, multiFaceConsecutiveCount - 1);
-                }
-            }
-        } catch (err) {
-            console.log("AI frame analysis error:", err);
-        }
+        }, 4000);
     }
 
     function enterFullscreen() {
