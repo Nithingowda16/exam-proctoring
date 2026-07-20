@@ -1422,21 +1422,17 @@ def seed_database():
     cursor = conn.cursor()
 
     try:
-        # 1. Clear existing accounts to satisfy "only" condition
-        cursor.execute("DELETE FROM admins;")
-        cursor.execute("DELETE FROM students;")
-        
-        # 2. Insert requested admin
+        # 1. Insert requested admin if not present
         admin_email = "nithingowda@nxtwave.in"
         admin_pass = "Halonix@2026"
         hashed_admin_password = generate_password_hash(admin_pass)
         cursor.execute(
-            "INSERT INTO admins (username, password_hash) VALUES (?, ?);",
+            "INSERT OR IGNORE INTO admins (username, password_hash) VALUES (?, ?);",
             (admin_email, hashed_admin_password)
         )
-        print(f"Admin user '{admin_email}' seeded.")
+        print(f"Admin user '{admin_email}' initialized.")
 
-        # 3. Insert requested students
+        # 2. Insert requested students if not present
         students_to_seed = [
             ("saishivani@nxtwave.in", "Sai Shivani", "saishivani@stu1869"),
             ("demo@nxtwave.in", "Demo Student", "demo123")
@@ -1444,10 +1440,10 @@ def seed_database():
         for email, name, pwd in students_to_seed:
             hashed_pwd = generate_password_hash(pwd)
             cursor.execute(
-                "INSERT INTO students (student_id, name, password_hash) VALUES (?, ?, ?);",
+                "INSERT OR IGNORE INTO students (student_id, name, password_hash) VALUES (?, ?, ?);",
                 (email, name, hashed_pwd)
             )
-            print(f"Student user '{email}' seeded.")
+            print(f"Student user '{email}' initialized.")
 
         # 2. Insert default settings
         default_settings = [
