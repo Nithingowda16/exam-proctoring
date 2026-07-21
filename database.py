@@ -2,12 +2,10 @@ import sqlite3
 import os
 
 # Support persistent disk mount directories on Render (e.g. /var/data/exam.db)
-data_dir = os.environ.get("DATA_DIR")
-if data_dir:
-    os.makedirs(data_dir, exist_ok=True)
-    DATABASE_PATH = os.path.join(data_dir, 'exam.db')
-else:
-    DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exam.db'))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(DATA_DIR, 'exam.db'))
 
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema.sql')
 
