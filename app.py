@@ -73,9 +73,9 @@ def check_exam_window():
         start_dt = datetime.strptime(settings["schedule_start"], "%Y-%m-%d %H:%M")
         end_dt = datetime.strptime(settings["schedule_end"], "%Y-%m-%d %H:%M")
     except Exception:
-        # Fallback to July 19, 2026 19:00 - 20:40
-        start_dt = datetime(2026, 7, 19, 19, 0, 0)
-        end_dt = datetime(2026, 7, 19, 20, 40, 0)
+        # Fallback to July 21, 2026 18:00 - 20:00
+        start_dt = datetime(2026, 7, 21, 18, 0, 0)
+        end_dt = datetime(2026, 7, 21, 20, 0, 0)
 
     now = get_ist_now().replace(tzinfo=None)
     
@@ -88,7 +88,7 @@ def check_exam_window():
         diff = int((end_dt - now).total_seconds())
         return 'active', diff
 
-# Auto-migrate: Add latest_frame column to exam_sessions & parent contact columns to students if missing
+# Auto-migrate: Add latest_frame column & update default schedule to 21 July 2026 18:00-20:00
 conn = get_db_connection()
 cursor = conn.cursor()
 try:
@@ -104,6 +104,14 @@ for col in ["father_name", "father_contact", "mother_name", "mother_contact", "a
     except Exception:
         pass
 
+# Force update default schedule window to July 21, 2026, 6:00 PM - 8:00 PM IST
+try:
+    cursor.execute("INSERT INTO exam_settings (key, value) VALUES ('schedule_start', '2026-07-21 18:00') ON CONFLICT(key) DO UPDATE SET value = '2026-07-21 18:00';")
+    cursor.execute("INSERT INTO exam_settings (key, value) VALUES ('schedule_end', '2026-07-21 20:00') ON CONFLICT(key) DO UPDATE SET value = '2026-07-21 20:00';")
+    conn.commit()
+except Exception:
+    pass
+
 conn.close()
 
 # ----------------- Database Helpers -----------------
@@ -115,8 +123,8 @@ def get_settings():
     settings = {row["key"]: row["value"] for row in cursor.fetchall()}
     conn.close()
     
-    start_str = settings.get("schedule_start", "2026-07-19 19:00")
-    end_str = settings.get("schedule_end", "2026-07-19 20:40")
+    start_str = settings.get("schedule_start", "2026-07-21 18:00")
+    end_str = settings.get("schedule_end", "2026-07-21 20:00")
     
     start_dt_val = start_str.replace(" ", "T")
     end_dt_val = end_str.replace(" ", "T")
@@ -219,7 +227,7 @@ def instructions():
             start_iso = dt_obj.strftime("%Y-%m-%dT%H:%M:00+05:30")
         except Exception:
             start_display = s_start + " IST"
-            start_iso = "2026-07-19T19:00:00+05:30"
+            start_iso = "2026-07-21T18:00:00+05:30"
             
         return render_template("exam_upcoming.html", start_display=start_display, start_iso=start_iso)
         
