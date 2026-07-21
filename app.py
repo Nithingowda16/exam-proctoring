@@ -304,7 +304,8 @@ def start_exam():
     payment_time = request.form.get("payment_time", "").strip()
 
     # Process Receipt File Upload
-    receipt_filename = g.student.get("payment_receipt_path") or ""
+    student_dict = dict(g.student) if g.student else {}
+    receipt_filename = student_dict.get("payment_receipt_path") or ""
     if 'payment_receipt' in request.files:
         file = request.files['payment_receipt']
         if file and file.filename != '':
