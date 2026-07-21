@@ -55,13 +55,13 @@
                             <td><strong>{{ s.name }}</strong></td>
                             <td style="font-size: 12px; color: var(--text-secondary);">
                                 {% if s.father_name or s.father_contact %}
-                                    <div>👨 <strong>Father:</strong> {{ s.father_name or 'N/A' }} ({{ s.father_contact or 'N/A' }})</div>
+                                    <div><strong>Father:</strong> {{ s.father_name or 'N/A' }} ({{ s.father_contact or 'N/A' }})</div>
                                 {% endif %}
                                 {% if s.mother_name or s.mother_contact %}
-                                    <div>👩 <strong>Mother:</strong> {{ s.mother_name or 'N/A' }} ({{ s.mother_contact or 'N/A' }})</div>
+                                    <div><strong>Mother:</strong> {{ s.mother_name or 'N/A' }} ({{ s.mother_contact or 'N/A' }})</div>
                                 {% endif %}
                                 {% if s.alt_contact_name or s.alt_contact_number %}
-                                    <div>📞 <strong>Alt Contact:</strong> {{ s.alt_contact_name or 'N/A' }} ({{ s.alt_contact_number or 'N/A' }})</div>
+                                    <div><strong>Alt Contact:</strong> {{ s.alt_contact_name or 'N/A' }} ({{ s.alt_contact_number or 'N/A' }})</div>
                                 {% endif %}
                                 {% if not s.father_name and not s.mother_name and not s.alt_contact_name %}
                                     <span style="color: var(--text-muted); font-style: italic;">Not provided yet</span>
