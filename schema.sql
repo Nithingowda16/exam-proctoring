@@ -12,7 +12,13 @@ CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
-    password_hash TEXT NOT NULL
+    password_hash TEXT NOT NULL,
+    father_name TEXT,
+    father_contact TEXT,
+    mother_name TEXT,
+    mother_contact TEXT,
+    alt_contact_name TEXT,
+    alt_contact_number TEXT
 );
 
 -- Questions table

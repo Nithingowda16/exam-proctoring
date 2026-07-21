@@ -50,6 +50,45 @@
 
     <div style="text-align: center;">
         <form action="{{ url_for('start_exam') }}" method="POST">
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; margin-bottom: 32px; text-align: left;">
+                <h3 style="margin-bottom: 16px; color: var(--primary-color); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px;">
+                    👨‍👩‍👧 Parent & Emergency Contact Details
+                </h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="father_name">Father's Full Name *</label>
+                        <input type="text" id="father_name" name="father_name" class="form-control" value="{{ student.father_name or '' }}" placeholder="Enter father's name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="father_contact">Father's Contact Number *</label>
+                        <input type="tel" id="father_contact" name="father_contact" class="form-control" value="{{ student.father_contact or '' }}" placeholder="Enter father's phone number" required>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="mother_name">Mother's Full Name *</label>
+                        <input type="text" id="mother_name" name="mother_name" class="form-control" value="{{ student.mother_name or '' }}" placeholder="Enter mother's name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mother_contact">Mother's Contact Number *</label>
+                        <input type="tel" id="mother_contact" name="mother_contact" class="form-control" value="{{ student.mother_contact or '' }}" placeholder="Enter mother's phone number" required>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="alt_contact_name">Alternative Contact Person Name</label>
+                        <input type="text" id="alt_contact_name" name="alt_contact_name" class="form-control" value="{{ student.alt_contact_name or '' }}" placeholder="Enter relative / guardian name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="alt_contact_number">Alternative Contact Number</label>
+                        <input type="tel" id="alt_contact_number" name="alt_contact_number" class="form-control" value="{{ student.alt_contact_number or '' }}" placeholder="Enter alternative phone number">
+                    </div>
+                </div>
+            </div>
+
             {% if has_active_session %}
                 <button type="submit" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
                     Resume Your Active Examination

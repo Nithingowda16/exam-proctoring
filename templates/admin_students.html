@@ -23,11 +23,11 @@
     <div class="alert alert-success">{{ success }}</div>
 {% endif %}
 
-<div style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start;">
+<div style="display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start;">
     
     <!-- Students List Panel -->
     <div class="glass-card admin-section">
-        <h3 style="margin-bottom: 16px;">Student List</h3>
+        <h3 style="margin-bottom: 16px;">Student Roster</h3>
         
         <!-- Search bar -->
         <form action="{{ url_for('admin_students') }}" method="GET" style="margin-bottom: 20px; display: flex; gap: 10px;">
@@ -43,7 +43,8 @@
                 <thead>
                     <tr>
                         <th>Student ID</th>
-                        <th>Full Name</th>
+                        <th>Candidate Name</th>
+                        <th>Parent & Emergency Contacts</th>
                         <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
@@ -52,16 +53,30 @@
                         <tr>
                             <td><code>{{ s.student_id }}</code></td>
                             <td><strong>{{ s.name }}</strong></td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">
+                                {% if s.father_name or s.father_contact %}
+                                    <div>👨 <strong>Father:</strong> {{ s.father_name or 'N/A' }} ({{ s.father_contact or 'N/A' }})</div>
+                                {% endif %}
+                                {% if s.mother_name or s.mother_contact %}
+                                    <div>👩 <strong>Mother:</strong> {{ s.mother_name or 'N/A' }} ({{ s.mother_contact or 'N/A' }})</div>
+                                {% endif %}
+                                {% if s.alt_contact_name or s.alt_contact_number %}
+                                    <div>📞 <strong>Alt Contact:</strong> {{ s.alt_contact_name or 'N/A' }} ({{ s.alt_contact_number or 'N/A' }})</div>
+                                {% endif %}
+                                {% if not s.father_name and not s.mother_name and not s.alt_contact_name %}
+                                    <span style="color: var(--text-muted); font-style: italic;">Not provided yet</span>
+                                {% endif %}
+                            </td>
                             <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
                                 <form action="{{ url_for('admin_students') }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to re-allocate the exam for {{ s.name }}? This will reset all current progress, answers, scores, and proctoring violations for this candidate.');">
                                     <input type="hidden" name="action" value="reallocate">
                                     <input type="hidden" name="student_db_id" value="{{ s.id }}">
-                                    <button type="submit" class="btn-warning" style="padding: 6px 12px; font-size: 12px; border-radius: 980px;">Re-allocate Exam</button>
+                                    <button type="submit" class="btn-warning" style="padding: 6px 10px; font-size: 11px; border-radius: 980px;">Re-allocate</button>
                                 </form>
                                 <form action="{{ url_for('admin_students') }}" method="POST" style="display: inline;" data-confirm-delete="Are you sure you want to delete student {{ s.name }}? This will delete all their exam sessions and results.">
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="student_db_id" value="{{ s.id }}">
-                                    <button type="submit" class="btn-danger" style="padding: 6px 12px; font-size: 12px; border-radius: 980px;">Delete</button>
+                                    <button type="submit" class="btn-danger" style="padding: 6px 10px; font-size: 11px; border-radius: 980px;">Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -81,21 +96,54 @@
             <input type="hidden" name="action" value="add">
             
             <div class="form-group">
-                <label class="form-label" for="student_id">Student ID / Roll No</label>
+                <label class="form-label" for="student_id">Student ID / Roll No *</label>
                 <input type="text" id="student_id" name="student_id" class="form-control" placeholder="e.g. STU999" required>
             </div>
             
             <div class="form-group">
-                <label class="form-label" for="name">Full Name</label>
+                <label class="form-label" for="name">Full Name *</label>
                 <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Alice Smith" required>
             </div>
             
             <div class="form-group">
-                <label class="form-label" for="password">Password</label>
+                <label class="form-label" for="password">Password *</label>
                 <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
             </div>
+
+            <hr style="border: none; border-top: 1px solid var(--glass-border); margin: 16px 0;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Parent & Contact Information (Optional)</h4>
+
+            <div class="form-group">
+                <label class="form-label" for="father_name">Father's Name</label>
+                <input type="text" id="father_name" name="father_name" class="form-control" placeholder="Father's full name">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="father_contact">Father's Phone Number</label>
+                <input type="tel" id="father_contact" name="father_contact" class="form-control" placeholder="Father's contact number">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="mother_name">Mother's Name</label>
+                <input type="text" id="mother_name" name="mother_name" class="form-control" placeholder="Mother's full name">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="mother_contact">Mother's Phone Number</label>
+                <input type="tel" id="mother_contact" name="mother_contact" class="form-control" placeholder="Mother's contact number">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="alt_contact_name">Alternative Contact Name</label>
+                <input type="text" id="alt_contact_name" name="alt_contact_name" class="form-control" placeholder="Relative / Guardian name">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="alt_contact_number">Alternative Contact Number</label>
+                <input type="tel" id="alt_contact_number" name="alt_contact_number" class="form-control" placeholder="Alternative phone number">
+            </div>
             
-            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Register Student</button>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 14px;">Register Student</button>
         </form>
     </div>
 

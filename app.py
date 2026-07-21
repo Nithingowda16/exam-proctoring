@@ -88,7 +88,7 @@ def check_exam_window():
         diff = int((end_dt - now).total_seconds())
         return 'active', diff
 
-# Auto-migrate: Add latest_frame column to exam_sessions if missing
+# Auto-migrate: Add latest_frame column to exam_sessions & parent contact columns to students if missing
 conn = get_db_connection()
 cursor = conn.cursor()
 try:
@@ -96,6 +96,14 @@ try:
     conn.commit()
 except Exception:
     pass
+
+for col in ["father_name", "father_contact", "mother_name", "mother_contact", "alt_contact_name", "alt_contact_number"]:
+    try:
+        cursor.execute(f"ALTER TABLE students ADD COLUMN {col} TEXT;")
+        conn.commit()
+    except Exception:
+        pass
+
 conn.close()
 
 # ----------------- Database Helpers -----------------
@@ -249,7 +257,8 @@ def instructions():
     return render_template(
         "exam_instructions.html",
         settings=settings,
-        has_active_session=session_row is not None
+        has_active_session=session_row is not None,
+        student=g.student
     )
 
 @app.route("/start_exam", methods=["POST"])
@@ -263,10 +272,29 @@ def start_exam():
     if window_status != 'active':
         return redirect(url_for("instructions"))
         
+    # Process parent and emergency contact inputs
+    father_name = request.form.get("father_name", "").strip()
+    father_contact = request.form.get("father_contact", "").strip()
+    mother_name = request.form.get("mother_name", "").strip()
+    mother_contact = request.form.get("mother_contact", "").strip()
+    alt_contact_name = request.form.get("alt_contact_name", "").strip()
+    alt_contact_number = request.form.get("alt_contact_number", "").strip()
+
     settings = get_settings()
     
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    if father_name or father_contact or mother_name or mother_contact:
+        cursor.execute(
+            """
+            UPDATE students 
+            SET father_name = ?, father_contact = ?, mother_name = ?, mother_contact = ?, alt_contact_name = ?, alt_contact_number = ?
+            WHERE id = ?;
+            """,
+            (father_name, father_contact, mother_name, mother_contact, alt_contact_name, alt_contact_number, g.student["id"])
+        )
+        conn.commit()
     
     # Check for completed session
     cursor.execute(
@@ -899,9 +927,15 @@ def admin_students():
             student_id = request.form.get("student_id", "").strip()
             name = request.form.get("name", "").strip()
             password = request.form.get("password", "")
+            father_name = request.form.get("father_name", "").strip()
+            father_contact = request.form.get("father_contact", "").strip()
+            mother_name = request.form.get("mother_name", "").strip()
+            mother_contact = request.form.get("mother_contact", "").strip()
+            alt_contact_name = request.form.get("alt_contact_name", "").strip()
+            alt_contact_number = request.form.get("alt_contact_number", "").strip()
             
             if not student_id or not name or not password:
-                error = "All fields are required."
+                error = "All mandatory fields are required."
             else:
                 cursor.execute("SELECT id FROM students WHERE student_id = ?;", (student_id,))
                 if cursor.fetchone():
@@ -909,8 +943,11 @@ def admin_students():
                 else:
                     hashed_pw = generate_password_hash(password)
                     cursor.execute(
-                        "INSERT INTO students (student_id, name, password_hash) VALUES (?, ?, ?);",
-                        (student_id, name, hashed_pw)
+                        """
+                        INSERT INTO students (student_id, name, password_hash, father_name, father_contact, mother_name, mother_contact, alt_contact_name, alt_contact_number) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """,
+                        (student_id, name, hashed_pw, father_name, father_contact, mother_name, mother_contact, alt_contact_name, alt_contact_number)
                     )
                     conn.commit()
                     success = f"Student {name} registered successfully."
@@ -1216,7 +1253,8 @@ def admin_export_results():
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT s.student_id, s.name, es.started_at, es.submitted_at, 
+        SELECT s.student_id, s.name, s.father_name, s.father_contact, s.mother_name, s.mother_contact, s.alt_contact_name, s.alt_contact_number,
+               es.started_at, es.submitted_at, 
                r.score, r.percentage, r.correct_answers, r.incorrect_answers, 
                r.unanswered_questions, r.pass_status,
                (SELECT COUNT(*) FROM violations WHERE session_id = es.id) as total_violations
@@ -1233,15 +1271,17 @@ def admin_export_results():
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow([
-        "Student ID", "Candidate Name", "Started At", "Submitted At", 
+        "Student ID", "Candidate Name", "Father Name", "Father Contact", "Mother Name", "Mother Contact", "Alt Contact Name", "Alt Contact Number",
+        "Started At", "Submitted At", 
         "Score Obtained", "Percentage (%)", "Correct", "Incorrect", 
         "Unanswered", "Pass/Fail Status", "Violations Recorded"
     ])
     
     for r in records:
         cw.writerow([
-            r["student_id"], r["name"], r["started_at"], r["submitted_at"],
-            r["score"], r["percentage"], r["correct_answers"], r["incorrect_answers"],
+            r["student_id"], r["name"], r["father_name"] or "", r["father_contact"] or "", r["mother_name"] or "", r["mother_contact"] or "", r["alt_contact_name"] or "", r["alt_contact_number"] or "",
+            r["started_at"], r["submitted_at"],
+            r["score"], f"{r['percentage']:.1f}%", r["correct_answers"], r["incorrect_answers"],
             r["unanswered_questions"], r["pass_status"], r["total_violations"]
         ])
         
