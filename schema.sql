@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS students (
     mother_name TEXT,
     mother_contact TEXT,
     alt_contact_name TEXT,
-    alt_contact_number TEXT
+    alt_contact_number TEXT,
+    utr_number TEXT,
+    payment_time TEXT,
+    payment_receipt_path TEXT
 );
 
 -- Questions table

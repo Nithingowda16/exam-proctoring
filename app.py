@@ -6,9 +6,10 @@ import sys
 import subprocess
 from io import StringIO
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response, g
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, make_response, g, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_db_connection
+from werkzeug.utils import secure_filename
+from database import get_db_connection, DATA_DIR
 
 # Automatically copy the uploaded NxtWave logo and make it transparent
 logo_src = r"C:\Users\nithi\.gemini\antigravity-ide\brain\93f55d35-220c-4b35-849b-cf9f69761310\media__1784179501385.png"
@@ -97,7 +98,7 @@ try:
 except Exception:
     pass
 
-for col in ["father_name", "father_contact", "mother_name", "mother_contact", "alt_contact_name", "alt_contact_number"]:
+for col in ["father_name", "father_contact", "mother_name", "mother_contact", "alt_contact_name", "alt_contact_number", "utr_number", "payment_time", "payment_receipt_path"]:
     try:
         cursor.execute(f"ALTER TABLE students ADD COLUMN {col} TEXT;")
         conn.commit()
@@ -113,6 +114,17 @@ except Exception:
     pass
 
 conn.close()
+
+# Configure Receipt Upload Directory
+RECEIPTS_DIR = os.path.join(DATA_DIR, "uploads", "receipts")
+os.makedirs(RECEIPTS_DIR, exist_ok=True)
+
+@app.route("/uploads/receipts/<path:filename>")
+def serve_receipt(filename):
+    """Serve uploaded payment receipts for admin verification."""
+    if not g.admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    return send_from_directory(RECEIPTS_DIR, filename)
 
 # ----------------- Database Helpers -----------------
 def get_settings():
@@ -280,29 +292,46 @@ def start_exam():
     if window_status != 'active':
         return redirect(url_for("instructions"))
         
-    # Process parent and emergency contact inputs
+    # Process parent and payment details
     father_name = request.form.get("father_name", "").strip()
     father_contact = request.form.get("father_contact", "").strip()
     mother_name = request.form.get("mother_name", "").strip()
     mother_contact = request.form.get("mother_contact", "").strip()
     alt_contact_name = request.form.get("alt_contact_name", "").strip()
     alt_contact_number = request.form.get("alt_contact_number", "").strip()
+    
+    utr_number = request.form.get("utr_number", "").strip()
+    payment_time = request.form.get("payment_time", "").strip()
+
+    # Process Receipt File Upload
+    receipt_filename = g.student.get("payment_receipt_path") or ""
+    if 'payment_receipt' in request.files:
+        file = request.files['payment_receipt']
+        if file and file.filename != '':
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext in ['.jpg', '.jpeg', '.png', '.pdf', '.webp']:
+                timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                safe_name = secure_filename(g.student["student_id"])
+                receipt_filename = f"{safe_name}_{timestamp_str}{ext}"
+                save_path = os.path.join(RECEIPTS_DIR, receipt_filename)
+                file.save(save_path)
 
     settings = get_settings()
     
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    if father_name or father_contact or mother_name or mother_contact:
-        cursor.execute(
-            """
-            UPDATE students 
-            SET father_name = ?, father_contact = ?, mother_name = ?, mother_contact = ?, alt_contact_name = ?, alt_contact_number = ?
-            WHERE id = ?;
-            """,
-            (father_name, father_contact, mother_name, mother_contact, alt_contact_name, alt_contact_number, g.student["id"])
-        )
-        conn.commit()
+    cursor.execute(
+        """
+        UPDATE students 
+        SET father_name = ?, father_contact = ?, mother_name = ?, mother_contact = ?, 
+            alt_contact_name = ?, alt_contact_number = ?,
+            utr_number = ?, payment_time = ?, payment_receipt_path = ?
+        WHERE id = ?;
+        """,
+        (father_name, father_contact, mother_name, mother_contact, alt_contact_name, alt_contact_number, utr_number, payment_time, receipt_filename, g.student["id"])
+    )
+    conn.commit()
     
     # Check for completed session
     cursor.execute(
@@ -1261,7 +1290,7 @@ def admin_export_results():
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT s.student_id, s.name, s.father_name, s.father_contact, s.mother_name, s.mother_contact, s.alt_contact_name, s.alt_contact_number,
+        SELECT s.student_id, s.name, s.father_name, s.father_contact, s.mother_name, s.mother_contact, s.alt_contact_name, s.alt_contact_number, s.utr_number, s.payment_time, s.payment_receipt_path,
                es.started_at, es.submitted_at, 
                r.score, r.percentage, r.correct_answers, r.incorrect_answers, 
                r.unanswered_questions, r.pass_status,
@@ -1279,7 +1308,7 @@ def admin_export_results():
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow([
-        "Student ID", "Candidate Name", "Father Name", "Father Contact", "Mother Name", "Mother Contact", "Alt Contact Name", "Alt Contact Number",
+        "Student ID", "Candidate Name", "Father Name", "Father Contact", "Mother Name", "Mother Contact", "Alt Contact Name", "Alt Contact Number", "UTR Number", "Payment Time", "Receipt Path",
         "Started At", "Submitted At", 
         "Score Obtained", "Percentage (%)", "Correct", "Incorrect", 
         "Unanswered", "Pass/Fail Status", "Violations Recorded"
@@ -1287,7 +1316,7 @@ def admin_export_results():
     
     for r in records:
         cw.writerow([
-            r["student_id"], r["name"], r["father_name"] or "", r["father_contact"] or "", r["mother_name"] or "", r["mother_contact"] or "", r["alt_contact_name"] or "", r["alt_contact_number"] or "",
+            r["student_id"], r["name"], r["father_name"] or "", r["father_contact"] or "", r["mother_name"] or "", r["mother_contact"] or "", r["alt_contact_name"] or "", r["alt_contact_number"] or "", r["utr_number"] or "", r["payment_time"] or "", r["payment_receipt_path"] or "",
             r["started_at"], r["submitted_at"],
             r["score"], f"{r['percentage']:.1f}%", r["correct_answers"], r["incorrect_answers"],
             r["unanswered_questions"], r["pass_status"], r["total_violations"]
